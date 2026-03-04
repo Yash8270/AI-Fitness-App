@@ -4,10 +4,10 @@ import { Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
-import Connect_Context from "../context/Connectcontext";
+import ConnectContext from "../context/Connectcontext";
 
 const SignupPage = () => {
-  const { signup } = useContext(Connect_Context);
+  const { signup } = useContext(ConnectContext);
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({

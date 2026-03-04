@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Activity, TrendingUp, Calendar, Zap, User, LogOut } from "lucide-react";
-import Connect_Context from "../../context/Connectcontext";
+import ConnectContext from "../../context/Connectcontext";
 
 const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useContext(Connect_Context);
+  const { logout } = useContext(ConnectContext);
 
   const navItems = [
     { id: "progress", label: "Progress", icon: TrendingUp, path: "/" },

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useContext } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, Bot, Menu, X, Zap } from 'lucide-react';
-import Connect_Context from '../context/Connectcontext';
+import ConnectContext from '../context/Connectcontext';
 import { AI_ACTIONS } from '../data/mockData';
 
 const typingIndicatorStyles = `
@@ -73,7 +73,7 @@ const TypingIndicator = () => (
 );
 
 const AiActionPage = () => {
-  const { askAiFirst, updateAiChat, getAiHistory } = useContext(Connect_Context);
+  const { askAiFirst, updateAiChat, getAiHistory } = useContext(ConnectContext);
 
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');

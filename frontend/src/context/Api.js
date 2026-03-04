@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Connect_Context from "./Connectcontext";
+import ConnectContext from "./Connectcontext";
 import Cookies from "js-cookie";
 
 const Api = (props) => {
@@ -309,7 +309,7 @@ const Api = (props) => {
   ========================= */
 
   return (
-    <Connect_Context.Provider
+    <ConnectContext.Provider
       value={{
         // auth
         authdata,
@@ -335,7 +335,7 @@ const Api = (props) => {
       }}
     >
       {props.children}
-    </Connect_Context.Provider>
+    </ConnectContext.Provider>
   );
 };
 

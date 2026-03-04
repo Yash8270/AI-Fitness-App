@@ -1,5 +1,5 @@
 import { createContext } from "react";
 
-const Connect_Context = createContext();
+const ConnectContext = createContext();
 
-export default Connect_Context;
+export default ConnectContext;

@@ -9,19 +9,19 @@ import {
 
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
-import ProgressPage from "./pages/ProgressPage";
+// import ProgressPage from "./pages/ProgressPage";
 import AiActionPage from "./pages/AiActionPage";
 import HistoryPage from "./pages/HistoryPage";
 import UnderProgress from "./pages/UnderProgress";
 
 import Layout from "./components/layout/Layout";
-import Connect_Context from "./context/Connectcontext";
+import ConnectContext from "./context/Connectcontext";
 
 /* =========================
    PROTECTED ROUTE WRAPPER
 ========================= */
 const ProtectedRoute = ({ children }) => {
-  const { authdata, loading } = useContext(Connect_Context);
+  const { authdata, loading } = useContext(ConnectContext);
 
   // ⏳ Wait until auth is resolved
   if (loading) {
@@ -47,13 +47,13 @@ const ProtectedRoute = ({ children }) => {
 ========================= */
 const AppRoutes = () => {
   const location = useLocation();
-  const { authdata } = useContext(Connect_Context);
+  const { authdata } = useContext(ConnectContext);
 
   const isAuth = authdata?.isAuthenticated;
 
   // Decide when to show layout (similar to Navbar / Shownav logic)
-  const isAuthPage =
-    location.pathname === "/login" || location.pathname === "/signup";
+  // const isAuthPage =
+  //   location.pathname === "/login" || location.pathname === "/signup";
 
   return (
     <>

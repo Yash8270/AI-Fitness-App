@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useRef } from 'react';
+import React, { useState, useEffect, useContext, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronUp, ChevronDown, Edit2, Check, X, Plus, Trash2, Calendar, List } from 'lucide-react';
 import Connect_Context from '../context/Connectcontext';
@@ -34,6 +34,17 @@ const HistoryPage = () => {
   // Ref for scrolling to details
   const detailsRef = useRef(null);
 
+  // Wrap fetch functions in useCallback and define them BEFORE useEffect
+  const fetchUserData = useCallback(async () => {
+    const user = await getUserDetails();
+    if (user && user.targets) setUserTargets(user.targets);
+  }, [getUserDetails]);
+
+  const fetchHistory = useCallback(async () => {
+    const res = await getAllHistory();
+    if (res && res.data) setHistoryLogs(res.data);
+  }, [getAllHistory]);
+
   useEffect(() => {
     const init = async () => {
       setLoading(true);
@@ -52,16 +63,6 @@ const HistoryPage = () => {
         }, 100);
     }
   }, [selectedDateLog, viewMode]);
-
-  const fetchUserData = async () => {
-    const user = await getUserDetails();
-    if (user && user.targets) setUserTargets(user.targets);
-  };
-
-  const fetchHistory = async () => {
-    const res = await getAllHistory();
-    if (res && res.data) setHistoryLogs(res.data);
-  };
 
   const toggleExpand = (id) => {
     if (editingId !== null && editingId !== id) return;
