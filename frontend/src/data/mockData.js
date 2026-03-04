@@ -1,4 +1,4 @@
-import { Utensils, Activity, Dumbbell, Droplet, Target, ClipboardList } from 'lucide-react';
+import { Utensils, Target } from 'lucide-react';
 import React from 'react';
 
 export const PROGRESS_DATA = [
