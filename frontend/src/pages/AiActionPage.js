@@ -116,7 +116,7 @@ const AiActionPage = () => {
       }
     };
     loadHistory();
-  }, []);
+  }, [getAiHistory]);
 
   useEffect(scrollToBottom, [messages, isTyping]);
 

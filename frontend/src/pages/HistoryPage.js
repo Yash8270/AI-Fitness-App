@@ -41,7 +41,7 @@ const HistoryPage = () => {
       setLoading(false);
     };
     init();
-  }, []);
+  }, [fetchHistory, fetchUserData]);
 
   // Scroll to details when a date is selected in calendar view
   useEffect(() => {
