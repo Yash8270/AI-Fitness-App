@@ -4,7 +4,6 @@ import {
   Route,
   BrowserRouter as Router,
   Navigate,
-  useLocation,
 } from "react-router-dom";
 
 import LoginPage from "./pages/LoginPage";
