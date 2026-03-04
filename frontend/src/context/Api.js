@@ -19,6 +19,7 @@ const Api = (props) => {
   // ─── Cache ───────────────────────────────────────────────
   const [historyCache, setHistoryCache] = useState(null);
   const [userDetailsCache, setUserDetailsCache] = useState(null);
+  const [aiHistoryCache, setAiHistoryCache] = useState(null);
   // ─────────────────────────────────────────────────────────
 
   /* =========================
@@ -105,6 +106,7 @@ const Api = (props) => {
     setauthdata({ token: null, isAuthenticated: false });
     setHistoryCache(null);
     setUserDetailsCache(null);
+    setAiHistoryCache(null);
   };
 
   /* =========================
@@ -225,6 +227,7 @@ const Api = (props) => {
         throw json;
       }
 
+      setAiHistoryCache(null); // new message sent, bust cache
       return json;
     } catch (error) {
       return { error };
@@ -242,21 +245,23 @@ const Api = (props) => {
         body: JSON.stringify({ prompt }),
       });
 
-      return await response.json();
+      const json = await response.json();
+      setAiHistoryCache(null); // new message sent, bust cache
+      return json;
     } catch (error) {
       console.error("AI update error:", error);
     }
   };
 
-  const getAiHistory = async () => {
+  const getAiHistory = async (forceRefresh = false) => {
+    if (aiHistoryCache && !forceRefresh) return aiHistoryCache;
     try {
       const response = await fetch(`${host}/ai/history`, {
-        headers: {
-          Authorization: `Bearer ${authdata.token}`,
-        },
+        headers: { Authorization: `Bearer ${authdata.token}` },
       });
-
-      return await response.json();
+      const json = await response.json();
+      setAiHistoryCache(json);
+      return json;
     } catch (error) {
       console.error("AI history error:", error);
     }
