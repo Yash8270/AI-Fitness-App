@@ -12,6 +12,7 @@ import SignupPage from "./pages/SignupPage";
 import ProgressPage from "./pages/ProgressPage";
 import AiActionPage from "./pages/AiActionPage";
 import HistoryPage from "./pages/HistoryPage";
+import UnderProgress from "./pages/UnderProgress";
 
 import Layout from "./components/layout/Layout";
 import Connect_Context from "./context/Connectcontext";
@@ -74,7 +75,8 @@ const AppRoutes = () => {
           element={
             <ProtectedRoute>
               <Layout>
-                <ProgressPage />
+                {/* <ProgressPage /> */}
+                <UnderProgress />
               </Layout>
             </ProtectedRoute>
           }

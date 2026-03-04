@@ -15,6 +15,11 @@ const Api = (props) => {
 
   const [loading, setLoading] = useState(true);
 
+  // ─── Cache ───────────────────────────────────────────────
+  const [historyCache, setHistoryCache] = useState(null);
+  const [userDetailsCache, setUserDetailsCache] = useState(null);
+  // ─────────────────────────────────────────────────────────
+
   /* =========================
      LOAD TOKEN ON START
   ========================= */
@@ -97,6 +102,8 @@ const Api = (props) => {
   const logout = () => {
     Cookies.remove("access_token");
     setauthdata({ token: null, isAuthenticated: false });
+    setHistoryCache(null);
+    setUserDetailsCache(null);
   };
 
   /* =========================
@@ -120,15 +127,15 @@ const Api = (props) => {
     }
   };
 
-  const getAllHistory = async () => {
+  const getAllHistory = async (forceRefresh = false) => {
+    if (historyCache && !forceRefresh) return historyCache;
     try {
       const response = await fetch(`${host}/history/all`, {
-        headers: {
-          Authorization: `Bearer ${authdata.token}`,
-        },
+        headers: { Authorization: `Bearer ${authdata.token}` },
       });
-
-      return await response.json();
+      const json = await response.json();
+      setHistoryCache(json);
+      return json;
     } catch (error) {
       console.error("Get all history error:", error);
     }
@@ -166,7 +173,9 @@ const Api = (props) => {
           throw new Error(errorJson.detail || "Update failed");
       }
 
-      return await response.json();
+      const json = await response.json();
+      setHistoryCache(null); // bust cache so next getAllHistory refetches
+      return json;
     } catch (error) {
       console.error("Update history error:", error);
       return { error: error.message };
@@ -268,10 +277,10 @@ const Api = (props) => {
   };
 
   // ✅ GET USER DETAILS (Mocking the response based on your JSON)
-  const getUserDetails = async () => {
+  const getUserDetails = async (forceRefresh = false) => {
+    if (userDetailsCache && !forceRefresh) return userDetailsCache;
     // In a real scenario, this would hit `${host}/auth/me` or similar.
-    // Returning the sample JSON provided to ensure targets match your request.
-    return {
+    const data = {
       "_id": { "$oid": "695a817b181bf8f60a39d026" },
       "user_name": "Yash",
       "user_email": "yash@gmail.com",
@@ -291,6 +300,8 @@ const Api = (props) => {
         "water_l": 2.5
       }
     };
+    setUserDetailsCache(data);
+    return data;
   };
 
   /* =========================

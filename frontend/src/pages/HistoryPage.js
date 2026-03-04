@@ -69,8 +69,9 @@ const HistoryPage = () => {
   };
 
   const startEditing = (log) => {
-    setEditingId(log._id);
-    setExpandedId(log._id); 
+    const id = log._id || log.date;
+    setEditingId(id);
+    setExpandedId(id);
     
     // Also set as selected date log if in calendar view so updates reflect immediately in the detail pane
     if(viewMode === 'calendar') {
@@ -105,7 +106,11 @@ const HistoryPage = () => {
 
   const saveEditing = async (date) => {
     const dateObj = new Date(date);
-    const dateStr = dateObj.toISOString().split('T')[0];
+    // Use local date parts to avoid UTC offset shifting the date (e.g. IST → UTC rolls back by 5:30hrs)
+    const year  = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day   = String(dateObj.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
 
     const payload = {
       consumed: {
@@ -127,15 +132,18 @@ const HistoryPage = () => {
     const res = await updateHistory(dateStr, payload);
     if (res && !res.error) {
       setEditingId(null);
-      // Fetch fresh history
-      const updatedHistory = await getAllHistory();
-      if(updatedHistory && updatedHistory.data){
-          setHistoryLogs(updatedHistory.data);
-          // If in calendar view, update the selected log reference so the view refreshes
-          if (viewMode === 'calendar' && selectedDateLog) {
-              const updatedLog = updatedHistory.data.find(l => l._id === selectedDateLog._id);
-              setSelectedDateLog(updatedLog || null);
-          }
+      // Force-refresh from MongoDB (bypass cache which was just busted)
+      const updatedHistory = await getAllHistory(true);
+      if (updatedHistory && updatedHistory.data) {
+        setHistoryLogs(updatedHistory.data);
+        // Refresh selected calendar log by matching on date string
+        if (viewMode === 'calendar' && selectedDateLog) {
+          const updatedLog = updatedHistory.data.find(
+            l => (l._id && l._id === selectedDateLog._id) ||
+                 new Date(l.date).toISOString().split('T')[0] === dateStr
+          );
+          setSelectedDateLog(updatedLog || null);
+        }
       }
     } else {
       alert("Failed to update history");
@@ -182,8 +190,10 @@ const HistoryPage = () => {
     // Construct date string to match backend format if needed, or compare date objects
     // Assuming historyLogs has 'date' as ISO string
     return historyLogs.find(log => {
-      const logDate = new Date(log.date);
-      return logDate.getDate() === day && logDate.getMonth() === month && logDate.getFullYear() === year;
+      // Parse as local time by replacing the T separator — avoids UTC offset shifting the date
+      const rawDate = log.date.includes('T') ? log.date.split('T')[0] : log.date;
+      const [logYear, logMonth, logDay] = rawDate.split('-').map(Number);
+      return logDay === day && (logMonth - 1) === month && logYear === year;
     });
   };
 
@@ -222,8 +232,11 @@ const HistoryPage = () => {
         }
       }
 
-      const isSelected = selectedDateLog && new Date(selectedDateLog.date).getDate() === day && 
-                         new Date(selectedDateLog.date).getMonth() === month;
+      const isSelected = selectedDateLog && (() => {
+        const rawDate = selectedDateLog.date.includes('T') ? selectedDateLog.date.split('T')[0] : selectedDateLog.date;
+        const [selYear, selMonth, selDay] = rawDate.split('-').map(Number);
+        return selDay === day && (selMonth - 1) === month && selYear === year;
+      })();
 
       days.push(
         <div 
@@ -231,8 +244,8 @@ const HistoryPage = () => {
           onClick={() => {
               if(log) {
                   setSelectedDateLog(log);
-                  // Ensure any previous list editing is cleared if switching dates
-                  if (editingId && editingId !== log._id) {
+                  const logId = log._id || log.date;
+                  if (editingId && editingId !== logId) {
                       cancelEditing();
                   }
               }

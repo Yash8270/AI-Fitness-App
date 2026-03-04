@@ -154,10 +154,15 @@ def get_all_history(
     try:
         history = list(
             nutrition_history_collection.find(
-                {"user_email": current_user["user_email"]},
-                {"_id": 0}
+                {"user_email": current_user["user_email"]}
             ).sort("date", -1)
         )
+
+        # Convert ObjectId and datetime to serializable types
+        for entry in history:
+            entry["_id"] = str(entry["_id"])
+            if isinstance(entry.get("date"), datetime):
+                entry["date"] = entry["date"].isoformat()
 
         return {
             "count": len(history),
@@ -260,4 +265,3 @@ def update_history_partial(
             status_code=500,
             detail="Failed to update history"
         )
-
