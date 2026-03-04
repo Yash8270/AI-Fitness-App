@@ -78,6 +78,7 @@ const AiActionPage = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [isChatLoading, setIsChatLoading] = useState(true); // Added loading state
   const [first, setFirst] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -99,20 +100,32 @@ const AiActionPage = () => {
 
   useEffect(() => {
     const loadHistory = async () => {
-      const res = await getAiHistory();
-      if (res?.messages?.length) {
-        const formatted = res.messages.flatMap((m, i) => [
-          { id: `${i}-q`, role: 'user', text: m.question },
-          { id: `${i}-a`, role: 'bot', text: m.answer },
-        ]);
-        setMessages(formatted);
-        setFirst(false);
-      } else {
+      setIsChatLoading(true); // Start loading
+      try {
+        const res = await getAiHistory();
+        if (res?.messages?.length) {
+          const formatted = res.messages.flatMap((m, i) => [
+            { id: `${i}-q`, role: 'user', text: m.question },
+            { id: `${i}-a`, role: 'bot', text: m.answer },
+          ]);
+          setMessages(formatted);
+          setFirst(false);
+        } else {
+          setMessages([{
+            id: 'welcome',
+            role: 'bot',
+            text: "Hello! I'm your FitMetrics AI. Ask me anything about nutrition, log your meals, or set daily targets.",
+          }]);
+        }
+      } catch (error) {
+        console.error("Failed to fetch chat history:", error);
         setMessages([{
           id: 'welcome',
           role: 'bot',
           text: "Hello! I'm your FitMetrics AI. Ask me anything about nutrition, log your meals, or set daily targets.",
         }]);
+      } finally {
+        setIsChatLoading(false); // Stop loading regardless of success/fail
       }
     };
     loadHistory();
@@ -228,7 +241,7 @@ const AiActionPage = () => {
       </aside>
 
       {/* ===== CHAT AREA ===== */}
-      <main className="flex-1 flex flex-col min-w-0 h-full">
+      <main className="flex-1 flex flex-col min-w-0 h-full relative">
 
         {/* Mobile top bar */}
         <div className="md:hidden flex items-center gap-3 px-4 py-3 border-b border-slate-800 bg-slate-900 flex-shrink-0">
@@ -238,42 +251,53 @@ const AiActionPage = () => {
           <span className="text-sm font-semibold text-slate-200">AI Assistant</span>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto chat-scroll py-6 pb-2">
-          <div className="px-6 space-y-8">
-            {messages.map((m, idx) => {
-              const prevRole = idx > 0 ? messages[idx - 1].role : null;
-              const isNewGroup = prevRole !== m.role;
+        {/* Messages or Loading Spinner */}
+        <div className="flex-1 overflow-y-auto chat-scroll py-6 pb-2 relative">
+          {isChatLoading ? (
+            <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
+              <div className="relative flex items-center justify-center w-14 h-14">
+                <div className="absolute inset-0 border-4 border-slate-800 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"></div>
+                <Bot size={20} className="text-indigo-400 animate-pulse" />
+              </div>
+              <p className="text-slate-400 text-sm font-medium animate-pulse tracking-wide">Syncing AI History...</p>
+            </div>
+          ) : (
+            <div className="px-6 space-y-8">
+              {messages.map((m, idx) => {
+                const prevRole = idx > 0 ? messages[idx - 1].role : null;
+                const isNewGroup = prevRole !== m.role;
 
-              /* ── USER message ── */
-              if (m.role === 'user') {
-                return (
-                  <div key={m.id} className={`flex justify-end items-end gap-3 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
-                    <div className="max-w-[60%] px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed bg-indigo-600 text-white shadow-lg shadow-indigo-900/30">
-                      {m.text}
+                /* ── USER message ── */
+                if (m.role === 'user') {
+                  return (
+                    <div key={m.id} className={`flex justify-end items-end gap-3 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
+                      <div className="max-w-[60%] px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed bg-indigo-600 text-white shadow-lg shadow-indigo-900/30">
+                        {m.text}
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-md">
+                        U
+                      </div>
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-md">
-                      U
+                  );
+                }
+
+                /* ── BOT message — open, no box ── */
+                return (
+                  <div key={m.id} className={`flex items-start gap-4 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
+                    <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot size={15} className="text-indigo-400" />
+                    </div>
+                    <div className="flex-1 text-sm leading-7 text-slate-200 bot-markdown pt-1">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
                     </div>
                   </div>
                 );
-              }
-
-              /* ── BOT message — open, no box ── */
-              return (
-                <div key={m.id} className={`flex items-start gap-4 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
-                  <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <Bot size={15} className="text-indigo-400" />
-                  </div>
-                  <div className="flex-1 text-sm leading-7 text-slate-200 bot-markdown pt-1">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
-                  </div>
-                </div>
-              );
-            })}
-            {isTyping && <TypingIndicator />}
-            <div ref={messagesEndRef} />
-          </div>
+              })}
+              {isTyping && <TypingIndicator />}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
         </div>
 
         {/* ===== INPUT AREA ===== */}
@@ -289,10 +313,11 @@ const AiActionPage = () => {
                   key={btn.type}
                   type="button"
                   onClick={() => handleDietOption(btn.type)}
+                  disabled={isChatLoading}
                   className={`px-3 py-1.5 text-xs rounded-lg border transition-all duration-150 ${
                     selectedOption === btn.type
                       ? 'bg-indigo-600 border-indigo-500 text-white'
-                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                      : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'
                   }`}
                 >
                   {btn.label}
@@ -308,20 +333,20 @@ const AiActionPage = () => {
               </p>
             )}
 
-            <div className="flex gap-3 items-end bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 focus-within:border-indigo-500/70 transition-colors">
+            <div className={`flex gap-3 items-end bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 transition-colors ${!isChatLoading && 'focus-within:border-indigo-500/70'}`}>
               <textarea
                 ref={textareaRef}
                 rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                disabled={isTyping}
-                placeholder="Message FitMetrics AI..."
-                className="flex-1 bg-transparent text-slate-200 text-sm resize-none overflow-hidden min-h-[22px] max-h-[150px] focus:outline-none placeholder-slate-500"
+                disabled={isTyping || isChatLoading}
+                placeholder={isChatLoading ? "Initializing..." : "Message FitMetrics AI..."}
+                className="flex-1 bg-transparent text-slate-200 text-sm resize-none overflow-hidden min-h-[22px] max-h-[150px] focus:outline-none placeholder-slate-500 disabled:cursor-not-allowed"
               />
               <button
                 onClick={() => sendMessage(inputValue)}
-                disabled={!inputValue.trim() || isTyping}
+                disabled={!inputValue.trim() || isTyping || isChatLoading}
                 className="w-8 h-8 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg flex items-center justify-center transition-all flex-shrink-0"
               >
                 <Send size={14} />
