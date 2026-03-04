@@ -39,6 +39,12 @@ const typingIndicatorStyles = `
 .chat-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
 .chat-scroll::-webkit-scrollbar-thumb:hover { background: #475569; }
 
+/* Custom horizontal scrollbar for tables */
+.table-scroll::-webkit-scrollbar { height: 6px; }
+.table-scroll::-webkit-scrollbar-track { background: transparent; }
+.table-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+.table-scroll::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
 .bot-markdown p { margin: 0 0 0.6em 0; }
 .bot-markdown p:last-child { margin-bottom: 0; }
 .bot-markdown ul { list-style: disc; padding-left: 1.25rem; margin: 0.5em 0; }
@@ -48,14 +54,14 @@ const typingIndicatorStyles = `
 .bot-markdown code { background: #1e293b; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.85em; color: #a5b4fc; }
 .bot-markdown pre { background: #1e293b; padding: 0.75rem; border-radius: 8px; overflow-x: auto; margin: 0.5em 0; }
 .bot-markdown pre code { background: none; padding: 0; color: #a5b4fc; }
-.bot-markdown table { border-collapse: collapse; width: 100%; margin: 0.5em 0; font-size: 0.9em; }
+.bot-markdown table { border-collapse: collapse; width: 100%; font-size: 0.9em; min-width: max-content; }
 .bot-markdown th { background: #1e293b; padding: 0.5rem 0.75rem; text-align: left; border: 1px solid #334155; color: #94a3b8; font-weight: 600; }
 .bot-markdown td { padding: 0.4rem 0.75rem; border: 1px solid #334155; color: #cbd5e1; }
 .bot-markdown h1, .bot-markdown h2, .bot-markdown h3 { color: #e2e8f0; font-weight: 600; margin: 0.75em 0 0.25em; }
 `;
 
 const TypingIndicator = () => (
-  <div className="flex items-start gap-4 py-2">
+  <div className="flex items-start gap-3 md:gap-4 py-2">
     <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
       <Bot size={15} className="text-indigo-400" />
     </div>
@@ -78,7 +84,7 @@ const AiActionPage = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
-  const [isChatLoading, setIsChatLoading] = useState(true); // Added loading state
+  const [isChatLoading, setIsChatLoading] = useState(true);
   const [first, setFirst] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState(null);
@@ -94,13 +100,13 @@ const AiActionPage = () => {
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 150)}px`;
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 120)}px`;
     }
   }, [inputValue]);
 
   useEffect(() => {
     const loadHistory = async () => {
-      setIsChatLoading(true); // Start loading
+      setIsChatLoading(true);
       try {
         const res = await getAiHistory();
         if (res?.messages?.length) {
@@ -125,7 +131,7 @@ const AiActionPage = () => {
           text: "Hello! I'm your FitMetrics AI. Ask me anything about nutrition, log your meals, or set daily targets.",
         }]);
       } finally {
-        setIsChatLoading(false); // Stop loading regardless of success/fail
+        setIsChatLoading(false);
       }
     };
     loadHistory();
@@ -180,7 +186,10 @@ const AiActionPage = () => {
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(inputValue); }
+    if (e.key === 'Enter' && !e.shiftKey) { 
+      e.preventDefault(); 
+      sendMessage(inputValue); 
+    }
   };
 
   const handleActionClick = (action) => {
@@ -192,8 +201,8 @@ const AiActionPage = () => {
 
   return (
     <div
-      className="fixed left-0 right-0 bottom-0 flex overflow-hidden bg-slate-950"
-      style={{ top: 'var(--navbar-height, 65px)' }}
+      // FIX: Starts at absolute top on mobile (inset-0). Pushes down ONLY on desktop (md:top-...)
+      className="fixed inset-0 md:top-[var(--navbar-height,65px)] flex overflow-hidden bg-slate-950"
     >
       <style>{typingIndicatorStyles}</style>
 
@@ -225,7 +234,7 @@ const AiActionPage = () => {
             >
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-lg ${a.color} flex items-center justify-center flex-shrink-0`}>
-                  {React.cloneElement(a.icon, { size: 15, className: 'text-white' })}
+                  {React.cloneElement(a.icon, { size: 15, className: 'text-white' }) }
                 </div>
                 <span className="text-sm text-slate-400 group-hover:text-slate-100 transition-colors leading-snug">
                   {a.title}
@@ -252,7 +261,7 @@ const AiActionPage = () => {
         </div>
 
         {/* Messages or Loading Spinner */}
-        <div className="flex-1 overflow-y-auto chat-scroll py-6 pb-2 relative">
+        <div className="flex-1 overflow-y-auto chat-scroll py-4 md:py-6 pb-2 min-h-0 relative">
           {isChatLoading ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center space-y-4">
               <div className="relative flex items-center justify-center w-14 h-14">
@@ -263,47 +272,59 @@ const AiActionPage = () => {
               <p className="text-slate-400 text-sm font-medium animate-pulse tracking-wide">Syncing AI History...</p>
             </div>
           ) : (
-            <div className="px-6 space-y-8">
+            <div className="px-4 md:px-6 space-y-6 md:space-y-8">
               {messages.map((m, idx) => {
                 const prevRole = idx > 0 ? messages[idx - 1].role : null;
                 const isNewGroup = prevRole !== m.role;
 
-                /* ── USER message ── */
                 if (m.role === 'user') {
                   return (
-                    <div key={m.id} className={`flex justify-end items-end gap-3 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
-                      <div className="max-w-[60%] px-4 py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed bg-indigo-600 text-white shadow-lg shadow-indigo-900/30">
+                    <div key={m.id} className={`flex justify-end items-end gap-2 md:gap-3 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
+                      <div className="max-w-[75%] md:max-w-[60%] px-3 md:px-4 py-2 md:py-3 rounded-2xl rounded-tr-sm text-sm leading-relaxed bg-indigo-600 text-white shadow-lg shadow-indigo-900/30">
                         {m.text}
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-xs font-bold text-white shadow-md">
+                      <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0 text-[10px] md:text-xs font-bold text-white shadow-md">
                         U
                       </div>
                     </div>
                   );
                 }
 
-                /* ── BOT message — open, no box ── */
                 return (
-                  <div key={m.id} className={`flex items-start gap-4 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
-                    <div className="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <Bot size={15} className="text-indigo-400" />
+                  <div key={m.id} className={`flex items-start gap-3 md:gap-4 ${isNewGroup && idx > 0 ? 'mt-2' : ''}`}>
+                    <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Bot size={14} className="text-indigo-400" />
                     </div>
-                    <div className="flex-1 text-sm leading-7 text-slate-200 bot-markdown pt-1">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                    {/* min-w-0 prevents this flex item from breaking its container if the table is super wide */}
+                    <div className="flex-1 min-w-0 text-[13px] md:text-sm leading-6 md:leading-7 text-slate-200 bot-markdown pt-0.5 md:pt-1">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          table: ({node, ...props}) => (
+                            <div className="w-full overflow-x-auto table-scroll my-3 pb-2">
+                              <table {...props} />
+                            </div>
+                          )
+                        }}
+                      >
+                        {m.text}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 );
               })}
               {isTyping && <TypingIndicator />}
-              <div ref={messagesEndRef} />
+              <div ref={messagesEndRef} className="h-2" />
             </div>
           )}
         </div>
 
         {/* ===== INPUT AREA ===== */}
-        <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/80 backdrop-blur-sm px-6 py-4 pb-[env(safe-area-inset-bottom,16px)]">
-          <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
+        {/* pb-[90px] for mobile specifically to push the input box above your bottom navigation bar! */}
+        <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/95 backdrop-blur-md px-3 md:px-6 py-3 pb-[90px] md:pb-6 z-10 w-full shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.5)]">
+          <div className="space-y-2 md:space-y-3">
+            
+            <div className="flex flex-nowrap md:flex-wrap gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide -mx-1 px-1">
               {[
                 { label: '📊 Calculate My Diet', type: 'today' },
                 { label: "📅 Yesterday's Diet", type: 'yesterday' },
@@ -314,7 +335,7 @@ const AiActionPage = () => {
                   type="button"
                   onClick={() => handleDietOption(btn.type)}
                   disabled={isChatLoading}
-                  className={`px-3 py-1.5 text-xs rounded-lg border transition-all duration-150 ${
+                  className={`flex-shrink-0 px-3 py-1.5 text-[11px] md:text-xs rounded-lg border transition-all duration-150 ${
                     selectedOption === btn.type
                       ? 'bg-indigo-600 border-indigo-500 text-white'
                       : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'
@@ -328,12 +349,12 @@ const AiActionPage = () => {
             <input type="date" ref={dateInputRef} className="hidden" onChange={(e) => setSelectedDate(e.target.value)} />
 
             {selectedOption && selectedDate && (
-              <p className="text-xs text-slate-500">
+              <p className="text-[10px] md:text-xs text-slate-500">
                 📅 Saving diet for: <span className="text-indigo-400 font-medium">{selectedDate}</span>
               </p>
             )}
 
-            <div className={`flex gap-3 items-end bg-slate-800 border border-slate-700 rounded-2xl px-4 py-3 transition-colors ${!isChatLoading && 'focus-within:border-indigo-500/70'}`}>
+            <div className={`flex gap-2 md:gap-3 items-end bg-slate-800 border border-slate-700 rounded-xl md:rounded-2xl px-3 md:px-4 py-2 md:py-3 transition-colors ${!isChatLoading && 'focus-within:border-indigo-500/70'}`}>
               <textarea
                 ref={textareaRef}
                 rows={1}
@@ -342,18 +363,18 @@ const AiActionPage = () => {
                 onKeyDown={handleKeyDown}
                 disabled={isTyping || isChatLoading}
                 placeholder={isChatLoading ? "Initializing..." : "Message FitMetrics AI..."}
-                className="flex-1 bg-transparent text-slate-200 text-sm resize-none overflow-hidden min-h-[22px] max-h-[150px] focus:outline-none placeholder-slate-500 disabled:cursor-not-allowed"
+                className="flex-1 bg-transparent text-slate-200 text-[13px] md:text-sm resize-none overflow-y-auto min-h-[20px] md:min-h-[22px] max-h-[100px] md:max-h-[150px] focus:outline-none placeholder-slate-500 disabled:cursor-not-allowed py-0.5"
               />
               <button
                 onClick={() => sendMessage(inputValue)}
                 disabled={!inputValue.trim() || isTyping || isChatLoading}
-                className="w-8 h-8 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg flex items-center justify-center transition-all flex-shrink-0"
+                className="w-8 h-8 md:w-9 md:h-9 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-lg flex items-center justify-center transition-all flex-shrink-0 self-end mb-0.5"
               >
                 <Send size={14} />
               </button>
             </div>
 
-            <p className="text-center text-xs text-slate-600">
+            <p className="text-center text-[9px] md:text-xs text-slate-600 hidden md:block">
               FitMetrics AI can make mistakes. Verify important nutrition info.
             </p>
           </div>
