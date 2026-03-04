@@ -46,7 +46,7 @@ const ProtectedRoute = ({ children }) => {
    APP ROUTES
 ========================= */
 const AppRoutes = () => {
-  const location = useLocation();
+  // const location = useLocation();
   const { authdata } = useContext(ConnectContext);
 
   const isAuth = authdata?.isAuthenticated;
