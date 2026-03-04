@@ -3,7 +3,8 @@ import ConnectContext from "./Connectcontext";
 import Cookies from "js-cookie";
 
 const Api = (props) => {
-  const host = "http://127.0.0.1:8000";
+  // const host = "http://127.0.0.1:8000";
+  const host = "https://ai-fitness-app-joow.onrender.com";
 
   /* =========================
      AUTH STATE
