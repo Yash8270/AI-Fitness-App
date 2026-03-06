@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useContext, memo, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useContext, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Send, Bot, Menu, X, Zap } from 'lucide-react';

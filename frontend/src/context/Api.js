@@ -3,7 +3,6 @@ import ConnectContext from "./Connectcontext";
 import Cookies from "js-cookie";
 
 const Api = (props) => {
-  // const host = "http://127.0.0.1:8000";
   const host = "https://ai-fitness-app-joow.onrender.com";
 
   /* =========================
@@ -24,14 +23,13 @@ const Api = (props) => {
 
   /* =========================
      PERSISTENT AI CHAT STATE
-     Lifted here so it survives page navigation
   ========================= */
   const [chatMessages, setChatMessages] = useState([]);
   const [chatIsTyping, setChatIsTyping] = useState(false);
-  const [chatIsLoading, setChatIsLoading] = useState(true);  // true until first load
-  const [chatIsFirst, setChatIsFirst] = useState(true);      // tracks if first message ever
-  const chatLoadedRef = useRef(false);                        // prevents double-loading history
-  const streamIntervalRef = useRef(null);                     // keeps stream alive across navigations
+  const [chatIsLoading, setChatIsLoading] = useState(true);
+  const [chatIsFirst, setChatIsFirst] = useState(true);
+  const chatLoadedRef = useRef(false);
+  const streamIntervalRef = useRef(null);
 
   /* =========================
      LOAD TOKEN ON START
@@ -51,7 +49,6 @@ const Api = (props) => {
      AUTH APIs
   ========================= */
 
-  // ✅ SIGNUP
   const signup = async (formData) => {
     try {
       const response = await fetch(`${host}/auth/signup`, {
@@ -83,7 +80,6 @@ const Api = (props) => {
     }
   };
 
-  // ✅ LOGIN
   const login = async (email, password) => {
     try {
       const response = await fetch(`${host}/auth/login`, {
@@ -111,14 +107,13 @@ const Api = (props) => {
     }
   };
 
-  // ✅ LOGOUT
   const logout = () => {
     Cookies.remove("access_token");
     setauthdata({ token: null, isAuthenticated: false });
     setHistoryCache(null);
     setUserDetailsCache(null);
     setAiHistoryCache(null);
-    // Also clear persistent chat state on logout
+    
     setChatMessages([]);
     setChatIsTyping(false);
     setChatIsLoading(true);
@@ -176,7 +171,6 @@ const Api = (props) => {
     }
   };
 
-  // ✅ UPDATE HISTORY
   const updateHistory = async (date, payload) => {
     try {
       const response = await fetch(`${host}/history/update/${date}`, {
@@ -223,11 +217,7 @@ const Api = (props) => {
     }
   };
 
-  // =========================
-  // AI CHAT APIs
-  // =========================
-
-  const askAiFirst = async (prompt) => {
+  const askAiFirst = useCallback(async (prompt) => {
     try {
       const response = await fetch(`${host}/ai/ask`, {
         method: "POST",
@@ -249,9 +239,9 @@ const Api = (props) => {
     } catch (error) {
       return { error };
     }
-  };
+  }, [authdata.token]);
 
-  const updateAiChat = async (prompt) => {
+  const updateAiChat = useCallback(async (prompt) => {
     try {
       const response = await fetch(`${host}/ai/update`, {
         method: "PATCH",
@@ -268,9 +258,9 @@ const Api = (props) => {
     } catch (error) {
       console.error("AI update error:", error);
     }
-  };
+  }, [authdata.token]);
 
-  const getAiHistory = async (forceRefresh = false) => {
+  const getAiHistory = useCallback(async (forceRefresh = false) => {
     if (aiHistoryCache && !forceRefresh) return aiHistoryCache;
     try {
       const response = await fetch(`${host}/ai/history`, {
@@ -282,7 +272,7 @@ const Api = (props) => {
     } catch (error) {
       console.error("AI history error:", error);
     }
-  };
+  }, [authdata.token, aiHistoryCache]);
 
   const deleteAiChat = async () => {
     try {
@@ -293,7 +283,6 @@ const Api = (props) => {
         },
       });
 
-      // Also reset persistent chat state when chat is deleted
       setChatMessages([]);
       setChatIsFirst(true);
       chatLoadedRef.current = false;
@@ -304,7 +293,6 @@ const Api = (props) => {
     }
   };
 
-  // ✅ GET USER DETAILS
   const getUserDetails = async (forceRefresh = false) => {
     if (userDetailsCache && !forceRefresh) return userDetailsCache;
     const data = {
@@ -333,14 +321,10 @@ const Api = (props) => {
 
   /* =========================
      PERSISTENT CHAT ACTIONS
-     These are used by AiActionPage instead of
-     managing state locally inside the component.
   ========================= */
 
-  // Called once when AiActionPage mounts — safe to call on every mount
-  // because chatLoadedRef prevents re-fetching if already loaded.
   const initChatHistory = useCallback(async () => {
-    if (chatLoadedRef.current) return; // already loaded, skip
+    if (chatLoadedRef.current) return; 
     chatLoadedRef.current = true;
     setChatIsLoading(true);
     try {
@@ -369,27 +353,35 @@ const Api = (props) => {
     } finally {
       setChatIsLoading(false);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [getAiHistory]);
 
-  // Streams the bot reply character by character into chatMessages
   const streamChatResponse = useCallback((text) => {
     const id = Date.now();
     setChatMessages(p => [...p, { id, role: 'bot', text: '' }]);
     let i = 0;
+    
+    // Performance fix: process text in chunks to prevent render lag
+    const chunkSize = Math.max(4, Math.floor(text.length / 30));
+
     if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
+    
     streamIntervalRef.current = setInterval(() => {
-      i += 4;
+      i += chunkSize;
       setChatMessages(p =>
         p.map(m => m.id === id ? { ...m, text: text.slice(0, i) } : m)
       );
+      
       if (i >= text.length) {
         clearInterval(streamIntervalRef.current);
         streamIntervalRef.current = null;
+        // Failsafe to ensure exact text is set at the end
+        setChatMessages(p =>
+          p.map(m => m.id === id ? { ...m, text } : m)
+        );
       }
-    }, 5);
+    }, 16); // ~60fps smooth rendering
   }, []);
 
-  // Main send function — used by AiActionPage
   const sendChatMessage = useCallback(async (text, selectedOption, selectedDate) => {
     if (!text.trim()) return;
 
@@ -421,7 +413,7 @@ const Api = (props) => {
         text: err?.error?.detail || 'Error occurred.',
       }]);
     }
-  }, [chatIsFirst, askAiFirst, updateAiChat, streamChatResponse]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [chatIsFirst, askAiFirst, updateAiChat, streamChatResponse]);
 
   /* =========================
      CONTEXT PROVIDER
@@ -430,7 +422,6 @@ const Api = (props) => {
   return (
     <ConnectContext.Provider
       value={{
-        // auth
         authdata,
         setauthdata,
         loading,
@@ -439,26 +430,22 @@ const Api = (props) => {
         logout,
         getUserDetails,
 
-        // history
         saveHistory,
         getAllHistory,
         getHistoryByDate,
         updateHistory,
 
-        // ai raw APIs (keep these for any other use)
         askAi,
         askAiFirst,
         updateAiChat,
         getAiHistory,
         deleteAiChat,
 
-        // ── Persistent chat state & actions ──────────────────
-        // AiActionPage should use these instead of local state
         chatMessages,
         chatIsTyping,
         chatIsLoading,
-        initChatHistory,   // call on mount to load history (safe to call repeatedly)
-        sendChatMessage,   // call to send a message
+        initChatHistory,
+        sendChatMessage,
       }}
     >
       {props.children}
