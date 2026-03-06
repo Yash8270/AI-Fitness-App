@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import ConnectContext from "./Connectcontext";
 import Cookies from "js-cookie";
 
@@ -21,6 +21,17 @@ const Api = (props) => {
   const [userDetailsCache, setUserDetailsCache] = useState(null);
   const [aiHistoryCache, setAiHistoryCache] = useState(null);
   // ─────────────────────────────────────────────────────────
+
+  /* =========================
+     PERSISTENT AI CHAT STATE
+     Lifted here so it survives page navigation
+  ========================= */
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatIsTyping, setChatIsTyping] = useState(false);
+  const [chatIsLoading, setChatIsLoading] = useState(true);  // true until first load
+  const [chatIsFirst, setChatIsFirst] = useState(true);      // tracks if first message ever
+  const chatLoadedRef = useRef(false);                        // prevents double-loading history
+  const streamIntervalRef = useRef(null);                     // keeps stream alive across navigations
 
   /* =========================
      LOAD TOKEN ON START
@@ -107,6 +118,13 @@ const Api = (props) => {
     setHistoryCache(null);
     setUserDetailsCache(null);
     setAiHistoryCache(null);
+    // Also clear persistent chat state on logout
+    setChatMessages([]);
+    setChatIsTyping(false);
+    setChatIsLoading(true);
+    setChatIsFirst(true);
+    chatLoadedRef.current = false;
+    if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
   };
 
   /* =========================
@@ -158,10 +176,9 @@ const Api = (props) => {
     }
   };
 
-  // ✅ UPDATE HISTORY (New)
+  // ✅ UPDATE HISTORY
   const updateHistory = async (date, payload) => {
     try {
-      // payload should match UpdateHistoryRequest: { consumed: {...}, foods: [...] }
       const response = await fetch(`${host}/history/update/${date}`, {
         method: "PATCH",
         headers: {
@@ -177,7 +194,7 @@ const Api = (props) => {
       }
 
       const json = await response.json();
-      setHistoryCache(null); // bust cache so next getAllHistory refetches
+      setHistoryCache(null);
       return json;
     } catch (error) {
       console.error("Update history error:", error);
@@ -227,7 +244,7 @@ const Api = (props) => {
         throw json;
       }
 
-      setAiHistoryCache(null); // new message sent, bust cache
+      setAiHistoryCache(null);
       return json;
     } catch (error) {
       return { error };
@@ -246,7 +263,7 @@ const Api = (props) => {
       });
 
       const json = await response.json();
-      setAiHistoryCache(null); // new message sent, bust cache
+      setAiHistoryCache(null);
       return json;
     } catch (error) {
       console.error("AI update error:", error);
@@ -276,16 +293,20 @@ const Api = (props) => {
         },
       });
 
+      // Also reset persistent chat state when chat is deleted
+      setChatMessages([]);
+      setChatIsFirst(true);
+      chatLoadedRef.current = false;
+
       return await response.json();
     } catch (error) {
       console.error("AI delete error:", error);
     }
   };
 
-  // ✅ GET USER DETAILS (Mocking the response based on your JSON)
+  // ✅ GET USER DETAILS
   const getUserDetails = async (forceRefresh = false) => {
     if (userDetailsCache && !forceRefresh) return userDetailsCache;
-    // In a real scenario, this would hit `${host}/auth/me` or similar.
     const data = {
       "_id": { "$oid": "695a817b181bf8f60a39d026" },
       "user_name": "Yash",
@@ -311,6 +332,98 @@ const Api = (props) => {
   };
 
   /* =========================
+     PERSISTENT CHAT ACTIONS
+     These are used by AiActionPage instead of
+     managing state locally inside the component.
+  ========================= */
+
+  // Called once when AiActionPage mounts — safe to call on every mount
+  // because chatLoadedRef prevents re-fetching if already loaded.
+  const initChatHistory = useCallback(async () => {
+    if (chatLoadedRef.current) return; // already loaded, skip
+    chatLoadedRef.current = true;
+    setChatIsLoading(true);
+    try {
+      const res = await getAiHistory();
+      if (res?.messages?.length) {
+        const formatted = res.messages.flatMap((m, i) => [
+          { id: `${i}-q`, role: 'user', text: m.question },
+          { id: `${i}-a`, role: 'bot', text: m.answer },
+        ]);
+        setChatMessages(formatted);
+        setChatIsFirst(false);
+      } else {
+        setChatMessages([{
+          id: 'welcome',
+          role: 'bot',
+          text: "Hello! I'm your FitMetrics AI. Ask me anything about nutrition, log your meals, or set daily targets.",
+        }]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch chat history:", error);
+      setChatMessages([{
+        id: 'welcome',
+        role: 'bot',
+        text: "Hello! I'm your FitMetrics AI. Ask me anything about nutrition, log your meals, or set daily targets.",
+      }]);
+    } finally {
+      setChatIsLoading(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Streams the bot reply character by character into chatMessages
+  const streamChatResponse = useCallback((text) => {
+    const id = Date.now();
+    setChatMessages(p => [...p, { id, role: 'bot', text: '' }]);
+    let i = 0;
+    if (streamIntervalRef.current) clearInterval(streamIntervalRef.current);
+    streamIntervalRef.current = setInterval(() => {
+      i += 4;
+      setChatMessages(p =>
+        p.map(m => m.id === id ? { ...m, text: text.slice(0, i) } : m)
+      );
+      if (i >= text.length) {
+        clearInterval(streamIntervalRef.current);
+        streamIntervalRef.current = null;
+      }
+    }, 5);
+  }, []);
+
+  // Main send function — used by AiActionPage
+  const sendChatMessage = useCallback(async (text, selectedOption, selectedDate) => {
+    if (!text.trim()) return;
+
+    let finalText = text;
+    if (selectedOption && selectedDate) {
+      if (selectedOption === 'today')
+        finalText = `[SAVE_DIET:${selectedDate}] Calculate my diet for today.\n\n${text}`;
+      else if (selectedOption === 'yesterday')
+        finalText = `[SAVE_DIET:${selectedDate}] Calculate my diet for yesterday.\n\n${text}`;
+      else if (selectedOption === 'date')
+        finalText = `[SAVE_DIET:${selectedDate}] Calculate my diet for ${selectedDate}.\n\n${text}`;
+    }
+
+    setChatMessages(p => [...p, { id: Date.now(), role: 'user', text }]);
+    setChatIsTyping(true);
+
+    try {
+      const res = chatIsFirst
+        ? await askAiFirst(finalText)
+        : await updateAiChat(finalText);
+      setChatIsFirst(false);
+      setChatIsTyping(false);
+      streamChatResponse(res.response);
+    } catch (err) {
+      setChatIsTyping(false);
+      setChatMessages(p => [...p, {
+        id: Date.now(),
+        role: 'bot',
+        text: err?.error?.detail || 'Error occurred.',
+      }]);
+    }
+  }, [chatIsFirst, askAiFirst, updateAiChat, streamChatResponse]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /* =========================
      CONTEXT PROVIDER
   ========================= */
 
@@ -330,14 +443,22 @@ const Api = (props) => {
         saveHistory,
         getAllHistory,
         getHistoryByDate,
-        updateHistory, // Exposed new function
+        updateHistory,
 
-        // ai
+        // ai raw APIs (keep these for any other use)
         askAi,
         askAiFirst,
         updateAiChat,
         getAiHistory,
         deleteAiChat,
+
+        // ── Persistent chat state & actions ──────────────────
+        // AiActionPage should use these instead of local state
+        chatMessages,
+        chatIsTyping,
+        chatIsLoading,
+        initChatHistory,   // call on mount to load history (safe to call repeatedly)
+        sendChatMessage,   // call to send a message
       }}
     >
       {props.children}
