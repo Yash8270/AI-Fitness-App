@@ -4,6 +4,7 @@ import Cookies from "js-cookie";
 
 const Api = (props) => {
   const host = "https://ai-fitness-app-joow.onrender.com";
+  // const host = "http://localhost:8000";
 
   /* =========================
      AUTH STATE

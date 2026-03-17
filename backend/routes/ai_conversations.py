@@ -359,6 +359,7 @@ def _handle_ai(prompt: str, current_user, first: bool):
     # -----------------------
     diet_date, clean_prompt = extract_save_diet_tag(prompt)
     should_save_diet = diet_date is not None
+    print(f"Clean prompt after extracting diet tag: {clean_prompt}")
 
     # -----------------------
     # Decide prompt type
@@ -374,6 +375,7 @@ def _handle_ai(prompt: str, current_user, first: bool):
             system_prompt = f"""
 You are a fitness assistant.
 Answer the user's question clearly and helpfully.
+If user's asks to calculate a particular nutrients liek amount of protein then give them the best answer you can based on your knowledge, give estimation like 100g or 45g like that.
 User input:
 {clean_prompt}
 """
