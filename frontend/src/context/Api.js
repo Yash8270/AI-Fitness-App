@@ -423,7 +423,7 @@ const Api = (props) => {
         text: err?.error?.detail || 'Error occurred.',
       }]);
     }
-  }, [chatIsFirst, askAiFirst, updateAiChat, streamChatResponse]);
+  }, [chatIsFirst, askAiFirst, updateAiChat, streamChatResponse, getAllHistory]);
 
   /* =========================
      CONTEXT PROVIDER
