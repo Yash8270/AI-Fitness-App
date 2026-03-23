@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import ConnectContext from "./Connectcontext";
 
 const Api = (props) => {
-  // const host = "https://ai-fitness-app-joow.onrender.com";
-  const host = "http://localhost:8000";
+  const host = "https://ai-fitness-app-joow.onrender.com";
+  // const host = "http://localhost:8000";
 
   /* =========================
      AUTH STATE
