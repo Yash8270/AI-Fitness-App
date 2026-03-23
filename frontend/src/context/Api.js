@@ -156,7 +156,7 @@ const Api = (props) => {
     }
   };
 
-  const getAllHistory = async (forceRefresh = false) => {
+  const getAllHistory = useCallback(async (forceRefresh = false) => {
     if (historyCache && !forceRefresh) return historyCache;
     try {
       const response = await fetch(`${host}/history/all`, {
@@ -168,7 +168,7 @@ const Api = (props) => {
     } catch (error) {
       console.error("Get all history error:", error);
     }
-  };
+  }, [historyCache]);
 
   const getHistoryByDate = async (date) => {
     try {
