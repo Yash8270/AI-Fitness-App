@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Response, Depends
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, timedelta, time, date
 from passlib.context import CryptContext
@@ -71,7 +71,7 @@ def create_access_token(data: dict) -> str:
 # =========================
 
 @auth_router.post("/signup", response_model=AuthResponse)
-def signup(payload: SignupRequest):
+def signup(payload: SignupRequest, response: Response):
     print("[SIGNUP] Request received:", payload.user_email)
     try:
         print("[SIGNUP] Checking if user already exists")
@@ -112,6 +112,14 @@ def signup(payload: SignupRequest):
         })
 
         print("[SIGNUP] Signup successful")
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=JWT_EXPIRE_MINUTES * 60
+        )
         return {
             "access_token": token,
             "token_type": "bearer"
@@ -129,7 +137,7 @@ def signup(payload: SignupRequest):
 
 
 @auth_router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest):
+def login(payload: LoginRequest, response: Response):
     print("[LOGIN] Request received:", payload.user_email)
     try:
         print("[LOGIN] Fetching user from DB")
@@ -159,6 +167,14 @@ def login(payload: LoginRequest):
         })
 
         print("[LOGIN] Login successful")
+        response.set_cookie(
+            key="access_token",
+            value=token,
+            httponly=True,
+            secure=True,
+            samesite="none",
+            max_age=JWT_EXPIRE_MINUTES * 60
+        )
         return {
             "access_token": token,
             "token_type": "bearer"
@@ -176,12 +192,18 @@ def login(payload: LoginRequest):
 
 
 @auth_router.post("/logout")
-def logout():
+def logout(response: Response):
     print("[LOGOUT] Request received")
     try:
-        print("[LOGOUT] Stateless JWT logout")
+        print("[LOGOUT] Stateless JWT logout via cookie clearing")
+        response.delete_cookie(
+            key="access_token",
+            httponly=True,
+            secure=True,
+            samesite="none"
+        )
         return {
-            "message": "Logout successful. Please remove token from client."
+            "message": "Logout successful."
         }
     except Exception as e:
         print("[LOGOUT][Exception]", str(e))
@@ -189,3 +211,14 @@ def logout():
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Logout failed"
         )
+
+from routes.dependencies import get_current_user
+
+@auth_router.get("/validate")
+def validate_session(current_user=Depends(get_current_user)):
+    print("[VALIDATE] Session is valid")
+    return {
+        "status": "authenticated",
+        "user_email": current_user["user_email"],
+        "user_name": current_user["user_name"]
+    }

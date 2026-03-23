@@ -1,16 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import ConnectContext from "./Connectcontext";
-import Cookies from "js-cookie";
 
 const Api = (props) => {
-  const host = "https://ai-fitness-app-joow.onrender.com";
-  // const host = "http://localhost:8000";
+  // const host = "https://ai-fitness-app-joow.onrender.com";
+  const host = "http://localhost:8000";
 
   /* =========================
      AUTH STATE
   ========================= */
   const [authdata, setauthdata] = useState({
-    token: Cookies.get("access_token") || null,
     isAuthenticated: false,
   });
 
@@ -33,17 +31,24 @@ const Api = (props) => {
   const streamIntervalRef = useRef(null);
 
   /* =========================
-     LOAD TOKEN ON START
+     VALIDATE SESSION ON START
   ========================= */
   useEffect(() => {
-    const token = Cookies.get("access_token");
-    if (token) {
-      setauthdata({
-        token,
-        isAuthenticated: true,
-      });
-    }
-    setLoading(false);
+    const validateSession = async () => {
+      try {
+        const response = await fetch(`${host}/auth/validate`, {
+          credentials: "include",
+        });
+        if (response.ok) {
+          setauthdata({ isAuthenticated: true });
+        }
+      } catch (err) {
+        console.error("Session validation error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    validateSession();
   }, []);
 
   /* =========================
@@ -55,6 +60,7 @@ const Api = (props) => {
       const response = await fetch(`${host}/auth/signup`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           user_name: formData.user_name || "User",
           user_email: formData.email,
@@ -71,8 +77,7 @@ const Api = (props) => {
         throw new Error(json.detail || "Signup failed");
       }
 
-      Cookies.set("access_token", json.access_token, { expires: 1 });
-      setauthdata({ token: json.access_token, isAuthenticated: true });
+      setauthdata({ isAuthenticated: true });
 
       return json;
     } catch (error) {
@@ -86,6 +91,7 @@ const Api = (props) => {
       const response = await fetch(`${host}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           user_email: email,
           password,
@@ -98,8 +104,7 @@ const Api = (props) => {
         throw new Error(json.detail || "Login failed");
       }
 
-      Cookies.set("access_token", json.access_token, { expires: 1 });
-      setauthdata({ token: json.access_token, isAuthenticated: true });
+      setauthdata({ isAuthenticated: true });
 
       return json;
     } catch (error) {
@@ -108,9 +113,16 @@ const Api = (props) => {
     }
   };
 
-  const logout = () => {
-    Cookies.remove("access_token");
-    setauthdata({ token: null, isAuthenticated: false });
+  const logout = async () => {
+    try {
+      await fetch(`${host}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout error", err);
+    }
+    setauthdata({ isAuthenticated: false });
     setHistoryCache(null);
     setUserDetailsCache(null);
     setAiHistoryCache(null);
@@ -133,8 +145,8 @@ const Api = (props) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authdata.token}`,
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -148,7 +160,7 @@ const Api = (props) => {
     if (historyCache && !forceRefresh) return historyCache;
     try {
       const response = await fetch(`${host}/history/all`, {
-        headers: { Authorization: `Bearer ${authdata.token}` },
+        credentials: "include",
       });
       const json = await response.json();
       setHistoryCache(json);
@@ -161,9 +173,7 @@ const Api = (props) => {
   const getHistoryByDate = async (date) => {
     try {
       const response = await fetch(`${host}/history/by-date/${date}`, {
-        headers: {
-          Authorization: `Bearer ${authdata.token}`,
-        },
+        credentials: "include",
       });
 
       return await response.json();
@@ -178,8 +188,8 @@ const Api = (props) => {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authdata.token}`,
         },
+        credentials: "include",
         body: JSON.stringify(payload),
       });
 
@@ -207,8 +217,8 @@ const Api = (props) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authdata.token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ prompt }),
       });
 
@@ -224,8 +234,8 @@ const Api = (props) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authdata.token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ prompt }),
       });
 
@@ -240,7 +250,7 @@ const Api = (props) => {
     } catch (error) {
       return { error };
     }
-  }, [authdata.token]);
+  }, []);
 
   const updateAiChat = useCallback(async (prompt) => {
     try {
@@ -248,8 +258,8 @@ const Api = (props) => {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${authdata.token}`,
         },
+        credentials: "include",
         body: JSON.stringify({ prompt }),
       });
 
@@ -259,13 +269,13 @@ const Api = (props) => {
     } catch (error) {
       console.error("AI update error:", error);
     }
-  }, [authdata.token]);
+  }, []);
 
   const getAiHistory = useCallback(async (forceRefresh = false) => {
     if (aiHistoryCache && !forceRefresh) return aiHistoryCache;
     try {
       const response = await fetch(`${host}/ai/history`, {
-        headers: { Authorization: `Bearer ${authdata.token}` },
+        credentials: "include",
       });
       const json = await response.json();
       setAiHistoryCache(json);
@@ -273,15 +283,13 @@ const Api = (props) => {
     } catch (error) {
       console.error("AI history error:", error);
     }
-  }, [authdata.token, aiHistoryCache]);
+  }, [aiHistoryCache]);
 
   const deleteAiChat = async () => {
     try {
       const response = await fetch(`${host}/ai/delete`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${authdata.token}`,
-        },
+        credentials: "include",
       });
 
       setChatMessages([]);
@@ -403,6 +411,7 @@ const Api = (props) => {
       const res = chatIsFirst
         ? await askAiFirst(finalText)
         : await updateAiChat(finalText);
+        await getAllHistory(true);
       setChatIsFirst(false);
       setChatIsTyping(false);
       streamChatResponse(res.response);

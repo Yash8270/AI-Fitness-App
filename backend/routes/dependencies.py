@@ -1,12 +1,9 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status, Request
 from jose import jwt, JWTError
 from bson import ObjectId
 import os
 
 from db import users_collection
-
-security = HTTPBearer()
 
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
@@ -15,14 +12,18 @@ if not JWT_SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY is not set in environment variables")
 
 
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-):
+def get_current_user(request: Request):
     print("[AUTH][DEP] get_current_user called")
 
     try:
-        token = credentials.credentials
-        print("[AUTH][DEP] Token received")
+        token = request.cookies.get("access_token")
+        if not token:
+            print("[AUTH][DEP] Token missing from cookies")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Not authenticated"
+            )
+        print("[AUTH][DEP] Token received from cookies")
 
         print("[AUTH][DEP] Decoding JWT")
         payload = jwt.decode(

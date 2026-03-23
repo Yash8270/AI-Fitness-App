@@ -278,18 +278,18 @@ const AiActionPage = () => {
         <div className="flex-shrink-0 border-t border-slate-800 bg-slate-900/95 backdrop-blur-md px-3 md:px-6 py-3 pb-[90px] md:pb-6 z-10 w-full shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.5)]">
           <div className="space-y-2 md:space-y-3">
             
-            <div className="flex flex-nowrap md:flex-wrap gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide -mx-1 px-1">
+           <div className="flex flex-nowrap md:flex-wrap gap-1.5 md:gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide -mx-1 px-1">
               {[
-                { label: '📊 Calculate My Diet', type: 'today' },
-                { label: "📅 Yesterday's Diet", type: 'yesterday' },
-                { label: '🗓 Specific Date', type: 'date' },
+                { label: 'Calculate My Diet', type: 'today' },
+                { label: "Yesterday's Diet", type: 'yesterday' },
+                { label: 'Specific Date', type: 'date' },
               ].map(btn => (
                 <button
                   key={btn.type}
                   type="button"
                   onClick={() => handleDietOption(btn.type)}
                   disabled={chatIsLoading}
-                  className={`flex-shrink-0 px-3 py-1.5 text-[11px] md:text-xs rounded-lg border transition-all duration-150 ${
+                  className={`flex-shrink-0 px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs rounded-lg border transition-all duration-150 ${
                     selectedOption === btn.type
                       ? 'bg-indigo-600 border-indigo-500 text-white'
                       : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed'

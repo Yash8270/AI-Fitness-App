@@ -26,6 +26,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",   # React (CRA)
         "http://127.0.0.1:3000",
+        "http://localhost:5173",   # React (Vite)
+        "http://127.0.0.1:5173",
         "https://yash-limbachiya-fitmetrics.vercel.app",
     ],
     allow_credentials=True,
