@@ -174,8 +174,17 @@ const AiActionPage = () => {
     await sendChatMessage(text, option, date);
   };
 
-  const handleKeyDown = (e) => {
+const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
+      // Check if it's a mobile viewport (Tailwind's md breakpoint is 768px)
+      const isMobile = window.innerWidth < 768;
+      
+      if (isMobile) {
+        // On mobile, do nothing and let it naturally go to a new line
+        return; 
+      }
+
+      // On desktop, prevent the new line and send the message
       e.preventDefault();
       handleSend(inputValue);
     }
