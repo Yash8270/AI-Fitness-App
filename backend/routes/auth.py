@@ -4,8 +4,12 @@ from datetime import datetime, timedelta, time, date
 from passlib.context import CryptContext
 from jose import jwt
 import os
+import secrets
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 
-from db import users_collection
+from db import users_collection, password_reset_tokens_collection
 
 # =========================
 # CONFIG
@@ -45,6 +49,13 @@ class LoginRequest(BaseModel):
 class AuthResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class ForgotPasswordRequest(BaseModel):
+    user_email: EmailStr
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=1024)
 
 # =========================
 # UTILS
@@ -211,6 +222,99 @@ def logout(response: Response):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Logout failed"
         )
+
+def send_reset_email(to_email: str, token: str):
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+    
+    if not gmail_user or not gmail_password:
+        print("[EMAIL] GMAIL_USER or GMAIL_APP_PASSWORD not set. Email not sent.")
+        return # Skip sending email if not configured
+
+    # The frontend URL for password reset
+    # Assuming frontend is on port 5173 for Vite or 3000 for CRA, this can be an env var
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    reset_link = f"{frontend_url}/reset-password?token={token}"
+
+    msg = MIMEMultipart()
+    msg['From'] = gmail_user
+    msg['To'] = to_email
+    msg['Subject'] = "FitMetrics - Password Reset Request"
+
+    body = f"""
+    Hello,
+
+    We received a request to reset your password for FitMetrics.
+    Click the link below to set a new password:
+
+    {reset_link}
+
+    If you did not request this, please ignore this email.
+
+    Thanks,
+    FitMetrics Team
+    """
+    msg.attach(MIMEText(body, 'plain'))
+
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(gmail_user, gmail_password)
+        text = msg.as_string()
+        server.sendmail(gmail_user, to_email, text)
+        server.quit()
+        print(f"[EMAIL] Reset email sent to {to_email}")
+    except Exception as e:
+        print(f"[EMAIL] Failed to send email: {e}")
+
+@auth_router.post("/forgot-password")
+def forgot_password(payload: ForgotPasswordRequest):
+    print("[FORGOT_PASSWORD] Request received for:", payload.user_email)
+    user = users_collection.find_one({"user_email": payload.user_email})
+    if not user:
+        return {"message": "If that email is registered, a reset link has been sent."}
+
+    token = secrets.token_urlsafe(32)
+    expiry = datetime.utcnow() + timedelta(minutes=15)
+
+    password_reset_tokens_collection.insert_one({
+        "user_email": payload.user_email,
+        "token": token,
+        "expires_at": expiry
+    })
+
+    send_reset_email(payload.user_email, token)
+
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@auth_router.post("/reset-password")
+def reset_password(payload: ResetPasswordRequest):
+    print("[RESET_PASSWORD] Request received")
+    
+    token_doc = password_reset_tokens_collection.find_one({"token": payload.token})
+    if not token_doc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token."
+        )
+
+    if datetime.utcnow() > token_doc["expires_at"]:
+        password_reset_tokens_collection.delete_one({"_id": token_doc["_id"]})
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid or expired reset token."
+        )
+
+    hashed_pwd = hash_password(payload.new_password)
+    users_collection.update_one(
+        {"user_email": token_doc["user_email"]},
+        {"$set": {"password_hash": hashed_pwd, "updated_at": datetime.utcnow()}}
+    )
+
+    password_reset_tokens_collection.delete_many({"user_email": token_doc["user_email"]})
+
+    return {"message": "Password successfully reset."}
 
 from routes.dependencies import get_current_user
 
